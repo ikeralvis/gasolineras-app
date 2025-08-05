@@ -36,9 +36,13 @@ function LocationFilters({
           className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md shadow-sm text-gray-900"
         >
           <option value="">Todas</option>
-          {uniqueCommunities.map(community => (
-            <option key={community} value={community}>{community}</option>
-          ))}
+          {uniqueCommunities.length === 0 ? (
+            <option disabled>Cargando Comunidades...</option>
+          ) : (
+            uniqueCommunities.map(community => (
+              <option key={community} value={community}>{community}</option>
+            ))
+          )}
         </select>
       </div>
 
@@ -55,9 +59,13 @@ function LocationFilters({
           className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md shadow-sm disabled:bg-gray-50 disabled:cursor-not-allowed text-gray-900"
         >
           <option value="">Todos</option>
-          {uniqueMunicipalities.map(municipality => (
-            <option key={municipality} value={municipality}>{municipality}</option>
-          ))}
+          {uniqueMunicipalities.length === 0 && selectedCommunity ? (
+            <option disabled>Cargando Municipios...</option>
+          ) : (
+            uniqueMunicipalities.map(municipality => (
+              <option key={municipality} value={municipality}>{municipality}</option>
+            ))
+          )}
         </select>
       </div>
     </>

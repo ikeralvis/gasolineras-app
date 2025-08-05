@@ -8,6 +8,10 @@ import useGeolocation from './hooks/useGeolocation';
 import Header from './components/Header';
 import FuelFilter from './components/FuelFilter';
 import LocationFilters from './components/LocationFilters';
+import ProximityFilter from './components/ProximityFilter';
+import AveragePriceDisplay from './components/AveragePriceDisplay';
+import GasStationList from './components/GasStationList';
+import FilterControls from './components/FilterControls';
 import Modal from './components/Modal';
 
 function App() {
