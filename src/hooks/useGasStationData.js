@@ -1,27 +1,58 @@
 // src/hooks/useGasStationData.js
 import { useState, useEffect } from 'react';
+import { openDB } from 'idb'; // Importamos la librería idb
 
-/**
- * Custom hook para cargar los datos de las gasolineras desde la API del Ministerio.
- * Maneja el estado de carga, error y los datos de las gasolineras.
- * También extrae listas únicas de comunidades.
- * @returns {object} Un objeto con gasStations, loading, error, uniqueCommunities.
- */
+// Configuración de la base de datos y la caché
+const DB_NAME = 'gasolinerasDB';
+const STORE_NAME = 'gasolinerasStore';
+const CACHE_TTL_MS = 60 * 60 * 1000; // 60 minutos en milisegundos
+
+// Función para inicializar la base de datos IndexedDB
+const initDB = async () => {
+  return openDB(DB_NAME, 1, {
+    upgrade(db) {
+      // Creamos un "almacén de objetos" (como una tabla) si no existe
+      db.createObjectStore(STORE_NAME);
+    },
+  });
+};
+
 const useGasStationData = () => {
   const [gasStations, setGasStations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [uniqueCommunities, setUniqueCommunities] = useState([]);
 
   useEffect(() => {
     const fetchGasStations = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+      setLoading(true);
+      setError(null);
+      let db;
 
-        const API_URL = 'https://sedeaplicaciones.minetur.gob.es/ServiciosRESTCarburantes/PreciosCarburantes/EstacionesTerrestres/';
+      try {
+        // 1. Abrir la base de datos IndexedDB
+        db = await initDB();
         
-        console.log("useGasStationData: Iniciando fetch a:", API_URL);
+        // 2. Intentar obtener los datos de la caché
+        const cachedData = await db.get(STORE_NAME, 'data');
+        
+        if (cachedData && Date.now() - cachedData.timestamp < CACHE_TTL_MS) {
+          console.log('Cargando datos desde la caché de IndexedDB...');
+          setGasStations(cachedData.data);
+          setLoading(false);
+          return; // Salimos, no se necesita la petición a la API
+        } else {
+          if (cachedData) {
+            console.log('Caché de IndexedDB expirada. Buscando nuevos datos...');
+          }
+        }
+      } catch (e) {
+        console.error('Error al acceder a IndexedDB:', e);
+        // Si hay un error con IndexedDB, simplemente seguimos y hacemos la petición a la API
+      }
+
+      // 3. Si la caché no existe o está expirada, hacemos la petición a la API
+      try {
+        const API_URL = 'https://sedeaplicaciones.minetur.gob.es/ServiciosRESTCarburantes/PreciosCarburantes/EstacionesTerrestres/';
         const response = await fetch(API_URL);
         
         if (!response.ok) {
@@ -29,48 +60,38 @@ const useGasStationData = () => {
         }
         
         const data = await response.json();
-        console.log("useGasStationData: Datos crudos de la API recibidos:", data); // ¡IMPORTANTE! Revisa esto en la consola
 
-        // Verificar si 'ListaEESSPrecio' existe y es un array
         if (!data || !Array.isArray(data.ListaEESSPrecio)) {
-          console.error("useGasStationData: La estructura de datos de la API es inesperada. 'ListaEESSPrecio' no es un array o no existe.");
-          throw new Error("La estructura de datos de la API es inesperada. Por favor, contacta al soporte.");
+          throw new Error("La estructura de datos de la API es inesperada.");
         }
 
         const fetchedStations = data.ListaEESSPrecio;
+
+        // 4. Guardamos los nuevos datos en IndexedDB
+        if (db) {
+          await db.put(STORE_NAME, {
+            data: fetchedStations,
+            timestamp: Date.now(),
+          }, 'data');
+          console.log('Datos de la API guardados en IndexedDB.');
+        }
+
         setGasStations(fetchedStations);
-        console.log("useGasStationData: Número de estaciones obtenidas:", fetchedStations.length);
-        console.log("useGasStationData: Primeras 5 estaciones:", fetchedStations.slice(0, 5));
-        console.log("useGasStationData: CCAA de las primeras 5 estaciones:", fetchedStations.slice(0, 5).map(s => s.CCAA));
-
-        // Extraer comunidades autónomas únicas:
-        // 1. Mapear para obtener solo la propiedad 'CCAA'
-        // 2. Asegurarse de que sea un string y limpiar espacios
-        // 3. Filtrar cualquier valor que sea vacío, null o undefined
-        // 4. Usar un Set para obtener solo valores únicos
-        // 5. Convertir a Array y ordenar alfabéticamente
-        const communities = [...new Set(
-          fetchedStations
-            .map(station => typeof station.CCAA === 'string' ? station.CCAA.trim() : '')
-            .filter(Boolean) // Esto filtra cadenas vacías, null, undefined
-        )].sort();
-        
-        console.log("useGasStationData: Comunidades únicas procesadas y ordenadas:", communities); // ¡IMPORTANTE! Revisa esto
-        setUniqueCommunities(communities);
-
       } catch (e) {
-        console.error("useGasStationData: Error al cargar los datos de las gasolineras:", e);
-        setError(`No se pudieron cargar los datos de las gasolineras: ${e.message}. Por favor, inténtalo de nuevo más tarde.`);
+        setError(`No se pudieron cargar los datos: ${e.message}.`);
+        console.error('Error al cargar datos de la API:', e);
       } finally {
         setLoading(false);
+        if (db) {
+          db.close();
+        }
       }
     };
 
     fetchGasStations();
-  }, []); // El array de dependencias vacío asegura que se ejecute solo una vez al montar el componente
+  }, []);
 
-  // Devolvemos los estados y datos que la App principal necesitará
-  return { gasStations, loading, error, uniqueCommunities };
+  return { gasStations, loading, error };
 };
 
 export default useGasStationData;
