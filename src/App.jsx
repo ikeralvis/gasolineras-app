@@ -1,9 +1,8 @@
+// src/App.jsx
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import useGasStationData from './hooks/useGasStationData';
 import useDebounce from './hooks/useDebounce';
 import useGeolocation from './hooks/useGeolocation';
-
-// Importamos los componentes
 import Header from './components/Header';
 import FuelFilter from './components/FuelFilter';
 import ProximityFilter from './components/ProximityFilter';
@@ -13,14 +12,12 @@ import FilterControls from './components/FilterControls';
 import FavoriteGasStations from './components/FavoriteGasStations';
 import Modal from './components/Modal';
 import ClosestGasStation from './components/ClosestGasStation';
-import GasStationMap from './components/GasStationMap'; // Importamos el componente del mapa
+import GasStationMap from './components/GasStationMap';
+import GasStationDetail from './components/GasStationDetail';
 
-// Clave para localStorage de favoritos
 const FAVORITES_STORAGE_KEY = 'gasolineraFavoritas';
-// Clave para guardar los filtros
 const FILTERS_STORAGE_KEY = 'gasolineraFiltros';
 
-// Función para inicializar estados de forma segura desde localStorage
 const initializeStateFromLocalStorage = (key, defaultValue) => {
   try {
     const storedValue = localStorage.getItem(key);
@@ -31,7 +28,7 @@ const initializeStateFromLocalStorage = (key, defaultValue) => {
       return JSON.parse(storedValue);
     }
   } catch (e) {
-    console.error(`Error al cargar datos de localStorage para la clave ${key}:`, e);
+      console.error(`Error al cargar datos de localStorage para la clave ${key}:`, e);
   }
   return defaultValue;
 };
@@ -53,8 +50,8 @@ function App() {
   const [showModal, setShowModal] = useState(false);
   const [modalMessage, setModalMessage] = useState('');
   
-  // Estado para controlar la vista de lista o mapa
   const [viewMode, setViewMode] = useState('list');
+  const [selectedStation, setSelectedStation] = useState(null);
 
   const loading = apiLoading || geoLoading;
   const appBlockingError = apiError;
@@ -71,7 +68,7 @@ function App() {
   };
 
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 6371; // Radio de la Tierra en kilómetros
+    const R = 6371;
     const dLat = (lat2 - lat1) * (Math.PI / 180);
     const dLon = (lon2 - lon1) * (Math.PI / 180);
     const a =
@@ -215,6 +212,14 @@ function App() {
     showMessageBox("Todos los filtros han sido limpiados.");
   };
 
+  const handleOpenDetail = (station) => {
+    setSelectedStation(station);
+  };
+
+  const handleCloseDetail = () => {
+    setSelectedStation(null);
+  };
+
   if (apiLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen w-full bg-gradient-to-br from-blue-50 to-indigo-100 font-inter p-4">
@@ -241,6 +246,19 @@ function App() {
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-blue-50 to-indigo-100 p-4 sm:p-6 font-inter">
       <Modal isOpen={showModal} message={modalMessage} onClose={() => setShowModal(false)} />
+
+      {selectedStation && (
+        <GasStationDetail
+          station={selectedStation}
+          onClose={handleCloseDetail}
+          cleanPrice={cleanPrice}
+          favoriteStationIds={favoriteStationIds}
+          toggleFavorite={toggleFavorite}
+          allStations={gasStations}
+          calculateDistance={calculateDistance}
+        />
+      )}
+
       <Header />
       <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-6 sm:p-8 mb-8">
         <h2 className="text-2xl font-bold text-gray-800 mb-6">Filtros de Búsqueda</h2>
@@ -279,7 +297,6 @@ function App() {
       <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-6 sm:p-8">
         <h2 className="text-2xl font-bold text-gray-800 mb-6">Resultados</h2>
 
-        {/* Botones para cambiar la vista */}
         <div className="flex mb-4">
           <button
             onClick={() => setViewMode('list')}
@@ -295,7 +312,6 @@ function App() {
           </button>
         </div>
 
-        {/* Lógica condicional para mostrar la lista o el mapa */}
         {viewMode === 'list' && (
           <>
             {closestStation && (
@@ -304,6 +320,7 @@ function App() {
                 selectedFuel={selectedFuel}
                 cleanPrice={cleanPrice}
                 distance={closestStation.distance}
+                onStationClick={handleOpenDetail}
               />
             )}
             {favoriteStations.length > 0 && (
@@ -314,6 +331,7 @@ function App() {
                   cleanPrice={cleanPrice}
                   toggleFavorite={toggleFavorite}
                   favoriteStationIds={favoriteStationIds}
+                  onStationClick={handleOpenDetail}
                 />
               </div>
             )}
@@ -334,19 +352,21 @@ function App() {
               calculateDistance={calculateDistance}
               toggleFavorite={toggleFavorite}
               favoriteStationIds={favoriteStationIds}
+              onStationClick={handleOpenDetail}
             />
           </>
         )}
 
         {viewMode === 'map' && (
-  <GasStationMap
-    stations={filteredStations}
-    userLocation={{ latitude, longitude }}
-    selectedFuel={selectedFuel}
-    cleanPrice={cleanPrice}
-    favoriteStationIds={favoriteStationIds} // <-- ¡Asegúrate de que esta línea esté presente!
-  />
-)}
+          <GasStationMap
+            stations={filteredStations}
+            userLocation={{ latitude, longitude }}
+            selectedFuel={selectedFuel}
+            cleanPrice={cleanPrice}
+            favoriteStationIds={favoriteStationIds}
+            onStationClick={handleOpenDetail}
+          />
+        )}
       </div>
       <footer className="text-center text-gray-500 text-sm mt-8">
         <p>Datos obtenidos del Ministerio para la Transición Ecológica y el Reto Demográfico.</p>
