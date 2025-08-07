@@ -1,4 +1,3 @@
-// src/App.jsx
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import useGasStationData from './hooks/useGasStationData';
 import useDebounce from './hooks/useDebounce';
@@ -14,24 +13,21 @@ import FilterControls from './components/FilterControls';
 import FavoriteGasStations from './components/FavoriteGasStations';
 import Modal from './components/Modal';
 import ClosestGasStation from './components/ClosestGasStation';
+import GasStationMap from './components/GasStationMap'; // Importamos el componente del mapa
 
 // Clave para localStorage de favoritos
 const FAVORITES_STORAGE_KEY = 'gasolineraFavoritas';
 // Clave para guardar los filtros
 const FILTERS_STORAGE_KEY = 'gasolineraFiltros';
 
-// ----------------------------------------------------
-// NUEVA FUNCIÓN PARA INICIALIZAR ESTADOS DE FORMA SEGURA
-// ----------------------------------------------------
+// Función para inicializar estados de forma segura desde localStorage
 const initializeStateFromLocalStorage = (key, defaultValue) => {
   try {
     const storedValue = localStorage.getItem(key);
     if (storedValue) {
-      // Para favoritos, devolvemos un Set
       if (key === FAVORITES_STORAGE_KEY) {
         return new Set(JSON.parse(storedValue));
       }
-      // Para los filtros, devolvemos el objeto
       return JSON.parse(storedValue);
     }
   } catch (e) {
@@ -44,21 +40,20 @@ function App() {
   const { gasStations, loading: apiLoading, error: apiError } = useGasStationData();
   const { latitude, longitude, error: geoError, isLoading: geoLoading } = useGeolocation();
 
-  // >>> CAMBIOS AQUÍ: Inicializamos el estado leyendo directamente de localStorage <<<
   const [selectedFuel, setSelectedFuel] = useState(() => initializeStateFromLocalStorage(FILTERS_STORAGE_KEY, {}).selectedFuel || 'Precio Gasolina 95 E5');
   const [distanceKm, setDistanceKm] = useState(() => initializeStateFromLocalStorage(FILTERS_STORAGE_KEY, {}).distanceKm || 10);
   const debouncedDistanceKm = useDebounce(distanceKm, 500);
   const [textFilter, setTextFilter] = useState(() => initializeStateFromLocalStorage(FILTERS_STORAGE_KEY, {}).textFilter || '');
   const debouncedTextFilter = useDebounce(textFilter, 300);
   const [sortBy, setSortBy] = useState(() => initializeStateFromLocalStorage(FILTERS_STORAGE_KEY, {}).sortBy || 'price');
-  
-  // >>> CAMBIO CLAVE: Inicializamos el estado de favoritos directamente <<<
   const [favoriteStationIds, setFavoriteStationIds] = useState(() => initializeStateFromLocalStorage(FAVORITES_STORAGE_KEY, new Set()));
 
   const [filteredStations, setFilteredStations] = useState([]);
   const [averagePrice, setAveragePrice] = useState(0);
   const [showModal, setShowModal] = useState(false);
   const [modalMessage, setModalMessage] = useState('');
+  
+  // Estado para controlar la vista de lista o mapa
   const [viewMode, setViewMode] = useState('list');
 
   const loading = apiLoading || geoLoading;
@@ -88,11 +83,6 @@ function App() {
     return distance;
   };
 
-  // ----------------------------------------------------
-  // LÓGICA DE PERSISTENCIA (GUARDAR DATOS)
-  // ----------------------------------------------------
-  // Este useEffect sigue siendo necesario para guardar los cambios
-  // que se hagan DESPUÉS de la carga inicial.
   useEffect(() => {
     try {
       localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(Array.from(favoriteStationIds)));
@@ -102,7 +92,6 @@ function App() {
     }
   }, [favoriteStationIds]);
 
-  // Este useEffect guarda los filtros.
   useEffect(() => {
     try {
       const filters = {
@@ -116,10 +105,6 @@ function App() {
       console.error("Error al guardar filtros en localStorage:", e);
     }
   }, [selectedFuel, distanceKm, textFilter, sortBy]);
-
-  // ----------------------------------------------------
-  // LÓGICA DE FILTRADO Y PROCESAMIENTO
-  // ----------------------------------------------------
 
   const toggleFavorite = useCallback((stationId) => {
     setFavoriteStationIds(prevIds => {
@@ -293,43 +278,75 @@ function App() {
       </div>
       <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-6 sm:p-8">
         <h2 className="text-2xl font-bold text-gray-800 mb-6">Resultados</h2>
-        {closestStation && (
-          <ClosestGasStation
-            station={closestStation}
-            selectedFuel={selectedFuel}
-            cleanPrice={cleanPrice}
-            distance={closestStation.distance}
-          />
-        )}
-        {favoriteStations.length > 0 && (
-          <div className="mb-8">
-            <FavoriteGasStations
-              stations={favoriteStations}
+
+        {/* Botones para cambiar la vista */}
+        <div className="flex mb-4">
+          <button
+            onClick={() => setViewMode('list')}
+            className={`px-4 py-2 mr-2 rounded-md transition duration-300 ${viewMode === 'list' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+          >
+            Vista de Lista
+          </button>
+          <button
+            onClick={() => setViewMode('map')}
+            className={`px-4 py-2 rounded-md transition duration-300 ${viewMode === 'map' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+          >
+            Vista de Mapa
+          </button>
+        </div>
+
+        {/* Lógica condicional para mostrar la lista o el mapa */}
+        {viewMode === 'list' && (
+          <>
+            {closestStation && (
+              <ClosestGasStation
+                station={closestStation}
+                selectedFuel={selectedFuel}
+                cleanPrice={cleanPrice}
+                distance={closestStation.distance}
+              />
+            )}
+            {favoriteStations.length > 0 && (
+              <div className="mb-8">
+                <FavoriteGasStations
+                  stations={favoriteStations}
+                  selectedFuel={selectedFuel}
+                  cleanPrice={cleanPrice}
+                  toggleFavorite={toggleFavorite}
+                  favoriteStationIds={favoriteStationIds}
+                />
+              </div>
+            )}
+            {filteredStations.length > 0 && (
+              <AveragePriceDisplay
+                selectedFuelLabel={selectedFuel.replace('Precio ', '')}
+                averagePrice={averagePrice}
+                distanceKm={debouncedDistanceKm}
+                showDistanceInfo={latitude !== null && longitude !== null && !geoError}
+              />
+            )}
+            <GasStationList
+              stations={filteredStations}
               selectedFuel={selectedFuel}
+              latitude={latitude}
+              longitude={longitude}
               cleanPrice={cleanPrice}
+              calculateDistance={calculateDistance}
               toggleFavorite={toggleFavorite}
               favoriteStationIds={favoriteStationIds}
             />
-          </div>
+          </>
         )}
-        {filteredStations.length > 0 && (
-          <AveragePriceDisplay
-            selectedFuelLabel={selectedFuel.replace('Precio ', '')}
-            averagePrice={averagePrice}
-            distanceKm={debouncedDistanceKm}
-            showDistanceInfo={latitude !== null && longitude !== null && !geoError}
-          />
-        )}
-        <GasStationList
-          stations={filteredStations}
-          selectedFuel={selectedFuel}
-          latitude={latitude}
-          longitude={longitude}
-          cleanPrice={cleanPrice}
-          calculateDistance={calculateDistance}
-          toggleFavorite={toggleFavorite}
-          favoriteStationIds={favoriteStationIds}
-        />
+
+        {viewMode === 'map' && (
+  <GasStationMap
+    stations={filteredStations}
+    userLocation={{ latitude, longitude }}
+    selectedFuel={selectedFuel}
+    cleanPrice={cleanPrice}
+    favoriteStationIds={favoriteStationIds} // <-- ¡Asegúrate de que esta línea esté presente!
+  />
+)}
       </div>
       <footer className="text-center text-gray-500 text-sm mt-8">
         <p>Datos obtenidos del Ministerio para la Transición Ecológica y el Reto Demográfico.</p>

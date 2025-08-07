@@ -1,5 +1,6 @@
 // src/components/GasStationList.jsx
 import React from 'react';
+import { FaHeart, FaRegHeart, FaArrowDown } from 'react-icons/fa'; // Importamos el icono FaArrowDown
 
 function GasStationList({ stations, selectedFuel, latitude, longitude, cleanPrice, calculateDistance, toggleFavorite, favoriteStationIds }) {
   if (stations.length === 0) {
@@ -10,6 +11,10 @@ function GasStationList({ stations, selectedFuel, latitude, longitude, cleanPric
       </p>
     );
   }
+
+  // Calculamos el precio promedio de las gasolineras visibles
+  const allPrices = stations.map(s => cleanPrice(s[selectedFuel])).filter(price => price > 0);
+  const averagePrice = allPrices.reduce((sum, price) => sum + price, 0) / allPrices.length;
 
   return (
     <>
@@ -42,101 +47,113 @@ function GasStationList({ stations, selectedFuel, latitude, longitude, cleanPric
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {stations.map((station, index) => (
-              <tr key={station.IDEESS + '-' + index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                <td className="px-3 py-4 text-sm font-medium text-gray-900">
-                  {station.Rótulo}
-                </td>
-                <td className="px-3 py-4 text-sm text-gray-700">
-                  {station.Dirección}, {station.Localidad}
-                </td>
-                <td className="px-3 py-4 text-sm text-gray-700">
-                  {station.Municipio}
-                </td>
-                <td className="px-3 py-4 text-sm text-gray-700">
-                  {station.Provincia}
-                </td>
-                <td className="px-3 py-4 text-sm text-gray-700">
-                  {latitude !== null && longitude !== null
-                    ? calculateDistance(
-                        latitude,
-                        longitude,
-                        cleanPrice(station['Latitud'].replace(',', '.')),
-                        cleanPrice(station['Longitud (WGS84)'].replace(',', '.'))
-                      ).toFixed(2) + ' km'
-                    : 'N/A'}
-                </td>
-                <td className="px-3 py-4 text-lg font-bold text-green-700">
-                  {cleanPrice(station[selectedFuel]).toFixed(3)}
-                </td>
-                <td className="px-3 py-4 text-sm text-center">
-                  <button
-                    onClick={() => toggleFavorite(station.IDEESS)}
-                    className="p-2 rounded-full hover:bg-gray-100 transition-colors duration-200"
-                    title={favoriteStationIds.has(station.IDEESS) ? "Quitar de favoritos" : "Añadir a favoritos"}
-                  >
-                    {favoriteStationIds.has(station.IDEESS) ? (
-                      <svg className="w-6 h-6 text-red-500" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                        <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
-                      </svg>
-                    ) : (
-                      <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                      </svg>
-                    )}
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {stations.map((station, index) => {
+              const price = cleanPrice(station[selectedFuel]);
+              const isBelowAverage = price < averagePrice;
+
+              return (
+                <tr key={station.IDEESS + '-' + index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                  <td className="px-3 py-4 text-sm font-medium text-gray-900">
+                    <div className="flex items-center">
+                      <span>{station.Rótulo}</span>
+                      {isBelowAverage && (
+                        <FaArrowDown className="ml-2 text-green-600" title="Precio por debajo de la media" />
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-3 py-4 text-sm text-gray-700">
+                    {station.Dirección}, {station.Localidad}
+                  </td>
+                  <td className="px-3 py-4 text-sm text-gray-700">
+                    {station.Municipio}
+                  </td>
+                  <td className="px-3 py-4 text-sm text-gray-700">
+                    {station.Provincia}
+                  </td>
+                  <td className="px-3 py-4 text-sm text-gray-700">
+                    {latitude !== null && longitude !== null
+                      ? calculateDistance(
+                          latitude,
+                          longitude,
+                          cleanPrice(station['Latitud'].replace(',', '.')),
+                          cleanPrice(station['Longitud (WGS84)'].replace(',', '.'))
+                        ).toFixed(2) + ' km'
+                      : 'N/A'}
+                  </td>
+                  <td className={`px-3 py-4 text-lg font-bold ${isBelowAverage ? 'text-green-700' : 'text-gray-900'}`}>
+                    {price.toFixed(3)}
+                  </td>
+                  <td className="px-3 py-4 text-sm text-center">
+                    <button
+                      onClick={() => toggleFavorite(station.IDEESS)}
+                      className="p-2 rounded-full hover:bg-gray-100 transition-colors duration-200"
+                      title={favoriteStationIds.has(station.IDEESS) ? "Quitar de favoritos" : "Añadir a favoritos"}
+                    >
+                      {favoriteStationIds.has(station.IDEESS) ? (
+                        <FaHeart className="w-6 h-6 text-red-500" />
+                      ) : (
+                        <FaRegHeart className="w-6 h-6 text-gray-400" />
+                      )}
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
 
       {/* Vista de Tarjetas para Móvil */}
       <div className="md:hidden grid grid-cols-1 gap-4 mt-6">
-        {stations.map((station, index) => (
-          <div key={station.IDEESS + '-card-' + index} className="bg-white p-4 rounded-lg shadow-md border border-gray-200">
-            <div className="flex justify-between items-start mb-2">
-              <h3 className="text-lg font-bold text-blue-800">{station.Rótulo}</h3>
-              <button
-                onClick={() => toggleFavorite(station.IDEESS)}
-                className="p-2 rounded-full hover:bg-gray-100 transition-colors duration-200"
-                title={favoriteStationIds.has(station.IDEESS) ? "Quitar de favoritos" : "Añadir a favoritos"}
-              >
-                {favoriteStationIds.has(station.IDEESS) ? (
-                  <svg className="w-6 h-6 text-red-500" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                    <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
-                  </svg>
-                ) : (
-                  <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                  </svg>
-                )}
-              </button>
-            </div>
-            <p className="text-sm text-gray-700">{station.Dirección}, {station.Localidad}</p>
-            <p className="text-sm text-gray-600 mb-2">{station.Municipio}, {station.Provincia}</p>
+        {stations.map((station, index) => {
+          const price = cleanPrice(station[selectedFuel]);
+          const isBelowAverage = price < averagePrice;
 
-            <div className="flex justify-between items-center mt-3">
-              <p className="text-base text-gray-700">
-                Distancia:{' '}
-                <span className="font-semibold">
-                  {latitude !== null && longitude !== null
-                    ? calculateDistance(
-                        latitude,
-                        longitude,
-                        cleanPrice(station['Latitud'].replace(',', '.')),
-                        cleanPrice(station['Longitud (WGS84)'].replace(',', '.'))
-                      ).toFixed(2) + ' km'
-                    : 'N/A'}
-                </span>
-              </p>
-              <p className="text-2xl font-extrabold text-green-700">
-                {cleanPrice(station[selectedFuel]).toFixed(3)} €/L
-              </p>
+          return (
+            <div key={station.IDEESS + '-card-' + index} className={`bg-white p-4 rounded-lg shadow-md border-2 ${isBelowAverage ? 'border-green-400' : 'border-gray-200'}`}>
+              <div className="flex justify-between items-start mb-2">
+                <div className="flex items-center">
+                  <h3 className="text-lg font-bold text-blue-800">{station.Rótulo}</h3>
+                  {isBelowAverage && (
+                    <FaArrowDown className="ml-2 text-green-600" title="Precio por debajo de la media" />
+                  )}
+                </div>
+                <button
+                  onClick={() => toggleFavorite(station.IDEESS)}
+                  className="p-2 rounded-full hover:bg-gray-100 transition-colors duration-200"
+                  title={favoriteStationIds.has(station.IDEESS) ? "Quitar de favoritos" : "Añadir a favoritos"}
+                >
+                  {favoriteStationIds.has(station.IDEESS) ? (
+                    <FaHeart className="w-6 h-6 text-red-500" />
+                  ) : (
+                    <FaRegHeart className="w-6 h-6 text-gray-400" />
+                  )}
+                </button>
+              </div>
+              <p className="text-sm text-gray-700">{station.Dirección}, {station.Localidad}</p>
+              <p className="text-sm text-gray-600 mb-2">{station.Municipio}, {station.Provincia}</p>
+
+              <div className="flex justify-between items-center mt-3">
+                <p className="text-base text-gray-700">
+                  Distancia:{' '}
+                  <span className="font-semibold">
+                    {latitude !== null && longitude !== null
+                      ? calculateDistance(
+                          latitude,
+                          longitude,
+                          cleanPrice(station['Latitud'].replace(',', '.')),
+                          cleanPrice(station['Longitud (WGS84)'].replace(',', '.'))
+                        ).toFixed(2) + ' km'
+                      : 'N/A'}
+                  </span>
+                </p>
+                <p className={`text-2xl font-extrabold ${isBelowAverage ? 'text-green-700' : 'text-gray-900'}`}>
+                  {price.toFixed(3)} €/L
+                </p>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </>
   );

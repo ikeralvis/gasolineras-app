@@ -2,36 +2,34 @@
 import React from 'react';
 
 function ProximityFilter({ latitude, longitude, geoError, distanceKm, onDistanceChange }) {
-  if (geoError) {
-    return (
-      <div className="flex items-center justify-center col-span-1 md:col-span-2 lg:col-span-1">
-        <p className="text-sm text-red-600 text-center">
-          Error de geolocalización. El filtro por distancia no está disponible.
-        </p>
-      </div>
-    );
-  }
+  const isGeoEnabled = latitude !== null && longitude !== null && !geoError;
 
   return (
     <div>
-      <label htmlFor="distance" className="block text-sm font-medium text-gray-700 mb-1">
-        Distancia Máxima (Km):
+      <label htmlFor="distance-filter" className="block text-sm font-medium text-gray-700 mb-1">
+        Distancia máxima (km):
       </label>
-      <input
-        type="range"
-        id="distance"
-        min="5"
-        max="50"
-        step="5"
-        value={distanceKm}
-        onChange={onDistanceChange}
-        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-      />
-      <div className="flex justify-between text-xs text-gray-600 mt-1">
-        <span>5km</span>
-        <span>{distanceKm} km</span>
-        <span>50km</span>
+      <div className="relative mt-1 rounded-md shadow-sm">
+        {/* Cambiamos el input de tipo range por uno de tipo number */}
+        <input
+          type="number"
+          id="distance-filter"
+          value={distanceKm}
+          onChange={onDistanceChange}
+          disabled={!isGeoEnabled}
+          min="1"
+          max="50"
+          className="block w-full rounded-md border-gray-300 pl-3 pr-10 focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-900"
+        />
+        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+          <span className="text-gray-500 sm:text-sm">km</span>
+        </div>
       </div>
+      {!isGeoEnabled && (
+        <p className="mt-2 text-xs text-red-600">
+          La geolocalización no está disponible. No se puede filtrar por distancia.
+        </p>
+      )}
     </div>
   );
 }
