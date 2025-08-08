@@ -23,7 +23,7 @@ import ClosestGasStation from './components/ClosestGasStation';
 import GasStationMap from './components/GasStationMap';
 import GasStationDetail from './components/GasStationDetail';
 import Login from './components/Login';
-
+import UserProfile from './components/UserProfile'; // Importamos el nuevo componente de perfil
 
 const FILTERS_STORAGE_KEY = 'gasolineraFiltros';
 
@@ -44,7 +44,7 @@ const MainContent = React.memo(({
   sortBy, onSortChange, onClearFilters, closestStation, favoriteStations, filteredStations,
   cleanPrice, toggleFavorite, favoriteStationIds, onStationClick, latitude, longitude,
   debouncedDistanceKm, geoError, averagePrice, viewMode, setViewMode, gasStations, userLocation,
-  calculateDistance
+  calculateDistance, currentUser
 }) => {
   const handleToggleView = () => {
     if (viewMode === 'list' && (latitude === null || longitude === null || geoError)) {
@@ -57,7 +57,7 @@ const MainContent = React.memo(({
 
   return (
     <>
-      <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-6 sm:p-8 mb-8">
+      <div className="max-w-4xl mx-auto container px-4 bg-white rounded-xl shadow-lg p-6 sm:p-8 mb-8">
         <h2 className="text-2xl font-bold text-gray-800 mb-6">Filtros de Búsqueda</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
           <FuelFilter
@@ -92,7 +92,7 @@ const MainContent = React.memo(({
         />
       </div>
 
-      <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-6 sm:p-8">
+      <div className="max-w-4xl mx-auto container px-4 bg-white rounded-xl shadow-lg p-6 sm:p-8">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold text-gray-800">{viewMode === 'list' ? 'Resultados' : 'Mapa de Gasolineras'}</h2>
           <button
@@ -167,9 +167,12 @@ function App() {
   const { latitude, longitude, error: geoError, isLoading: geoLoading } = useGeolocation();
   const navigate = useNavigate();
 
-  const { currentUser, loading: authLoading } = useAuth();
+  // Obtenemos el usuario y el tipo de vehículo del contexto
+  const { currentUser, loading: authLoading, vehicleType } = useAuth();
 
-  const [selectedFuel, setSelectedFuel] = useState(() => initializeStateFromLocalStorage(FILTERS_STORAGE_KEY, {}).selectedFuel || 'Precio Gasolina 95 E5');
+  // El estado de los filtros se inicializa con el valor del perfil si existe,
+  // si no, se usa el de localStorage.
+  const [selectedFuel, setSelectedFuel] = useState(() => vehicleType || initializeStateFromLocalStorage(FILTERS_STORAGE_KEY, {}).selectedFuel || 'Precio Gasolina 95 E5');
   const [distanceKm, setDistanceKm] = useState(() => initializeStateFromLocalStorage(FILTERS_STORAGE_KEY, {}).distanceKm || 10);
   const debouncedDistanceKm = useDebounce(distanceKm, 500);
   const [textFilter, setTextFilter] = useState(() => initializeStateFromLocalStorage(FILTERS_STORAGE_KEY, {}).textFilter || '');
@@ -236,6 +239,14 @@ function App() {
       setFavoriteStationIds(new Set());
     }
   }, [currentUser]); // Depende del currentUser, se ejecuta al iniciar/cerrar sesión
+
+  // Nuevo useEffect para sincronizar el filtro de combustible con el tipo de vehículo del usuario
+  useEffect(() => {
+    if (vehicleType) {
+      setSelectedFuel(vehicleType);
+    }
+  }, [vehicleType]);
+
 
   useEffect(() => {
     try {
@@ -367,7 +378,8 @@ function App() {
   const handleSortChange = (e) => setSortBy(e.target.value);
 
   const handleClearFilters = () => {
-    setSelectedFuel('Precio Gasolina 95 E5');
+    // Reseteamos el filtro de combustible al valor del perfil del usuario, si existe
+    setSelectedFuel(vehicleType || 'Precio Gasolina 95 E5'); 
     setDistanceKm(10);
     setTextFilter('');
     setSortBy('price');
@@ -429,6 +441,7 @@ function App() {
                 calculateDistance={calculateDistance}
                 viewMode={viewMode}
                 setViewMode={setViewMode}
+                currentUser={currentUser}
               />
             } />
             <Route path="/gasolinera/:id" element={
@@ -440,6 +453,8 @@ function App() {
                 calculateDistance={calculateDistance}
               />
             } />
+            {/* Nueva ruta para el perfil de usuario */}
+            <Route path="/perfil" element={<UserProfile />} />
           </Routes>
         </>
       )}
