@@ -10,7 +10,6 @@ function ProximityFilter({ latitude, longitude, geoError, distanceKm, onDistance
         Distancia máxima (km):
       </label>
       <div className="relative mt-1 rounded-md shadow-sm">
-        {/* Cambiamos el input de tipo range por uno de tipo number */}
         <input
           type="number"
           id="distance-filter"
@@ -19,7 +18,8 @@ function ProximityFilter({ latitude, longitude, geoError, distanceKm, onDistance
           disabled={!isGeoEnabled}
           min="1"
           max="50"
-          className="block w-full rounded-md border-gray-300 pl-3 pr-10 focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-gray-900"
+          className="block w-full rounded-md border-gray-300 pl-3 pr-10 p-2 text-gray-900 focus:outline-none focus:ring-purple-500 focus:border-purple-500 sm:text-sm
+            disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
         />
         <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
           <span className="text-gray-500 sm:text-sm">km</span>

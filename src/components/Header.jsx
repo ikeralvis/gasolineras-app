@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { signOut } from 'firebase/auth';
 import { auth } from '../firebaseConfig'; // Asegúrate de que esta ruta es correcta
 import Modal from './Modal';
+import logo from '/icon.png';
 
 
 /**
@@ -30,34 +31,36 @@ function Header() {
 
     return (
         <>
-            <header className="py-4 px-6 rounded-xl flex items-center justify-between mb-8 font-inter">
-                {/* Contenedor vacío para empujar el título al centro */}
-                <div className="flex-1"></div>
-                
-                {/* Título principal de la aplicación */}
-                <div className="text-center flex-1">
-                    <h1 className="text-3xl sm:text-4xl font-extrabold text-blue-800 tracking-tight mb-2">
-                        ⛽ Gasolineras España
-                    </h1>
-                    <p className="text-lg text-gray-600">Encuentra el mejor precio de combustible</p>
+            <header className="py-4 px-6 bg-white shadow-lg rounded-xl flex items-center justify-between mb-8 font-inter">
+                {/* Contenedor del logo y título */}
+                <div className="flex items-center space-x-4 flex-1">
+                    <img src={logo} alt="Logo de Gasolineras" className="w-12 h-12 rounded-xl transition-transform duration-300 transform hover:scale-110" />
+                    <div className="flex-1">
+                        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-1">
+                            <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-500 to-pink-500">
+                                Gasolineras España
+                            </span>
+                        </h1>
+                        <p className="text-sm text-gray-500 hidden sm:block">Encuentra el mejor precio de combustible</p>
+                    </div>
                 </div>
                 
                 {/* Sección de usuario, alineada a la derecha */}
-                <div className="flex-1 flex items-center justify-end space-x-4">
+                <div className="flex items-center justify-end space-x-4">
                     {currentUser ? (
                         <>
-                            <span className="text-gray-600 font-medium hidden sm:block">
+                            <span className="text-gray-600 font-medium hidden sm:block text-sm">
                                 Hola, {currentUser.email}
                             </span>
                             <button
                                 onClick={handleLogout}
-                                className="px-4 py-2 bg-red-600 text-white rounded-md shadow-sm hover:bg-red-700 transition duration-300 font-semibold"
+                                className="px-4 py-2 bg-red-600 text-white rounded-md shadow-sm hover:bg-red-700 transition duration-300 font-semibold text-sm"
                             >
                                 Cerrar sesión
                             </button>
                         </>
                     ) : (
-                        <span className="text-gray-600 font-medium">
+                       <span className="text-gray-600 font-medium text-sm">
                             Bienvenido
                         </span>
                     )}
