@@ -3,6 +3,14 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import useGasStationData from './hooks/useGasStationData';
 import useDebounce from './hooks/useDebounce';
 import useGeolocation from './hooks/useGeolocation';
+import { Routes, Route, useNavigate } from 'react-router-dom';
+import { signOut } from 'firebase/auth';
+import { auth, db } from './firebaseConfig';
+import { useAuth } from './context/AuthContext';
+// Importaciones de Firestore
+import { doc, setDoc, onSnapshot, updateDoc } from 'firebase/firestore';
+
+// Importamos los componentes
 import Header from './components/Header';
 import FuelFilter from './components/FuelFilter';
 import ProximityFilter from './components/ProximityFilter';
@@ -14,28 +22,152 @@ import Modal from './components/Modal';
 import ClosestGasStation from './components/ClosestGasStation';
 import GasStationMap from './components/GasStationMap';
 import GasStationDetail from './components/GasStationDetail';
+import Login from './components/Login';
 
-const FAVORITES_STORAGE_KEY = 'gasolineraFavoritas';
+
 const FILTERS_STORAGE_KEY = 'gasolineraFiltros';
 
 const initializeStateFromLocalStorage = (key, defaultValue) => {
   try {
     const storedValue = localStorage.getItem(key);
     if (storedValue) {
-      if (key === FAVORITES_STORAGE_KEY) {
-        return new Set(JSON.parse(storedValue));
-      }
       return JSON.parse(storedValue);
     }
   } catch (e) {
-      console.error(`Error al cargar datos de localStorage para la clave ${key}:`, e);
+    console.error(`Error al cargar datos de localStorage para la clave ${key}:`, e);
   }
   return defaultValue;
 };
 
+const MainContent = React.memo(({
+  selectedFuel, onFuelChange, textFilter, onTextFilterChange, distanceKm, onDistanceChange,
+  sortBy, onSortChange, onClearFilters, closestStation, favoriteStations, filteredStations,
+  cleanPrice, toggleFavorite, favoriteStationIds, onStationClick, latitude, longitude,
+  debouncedDistanceKm, geoError, averagePrice, viewMode, setViewMode, gasStations, userLocation,
+  calculateDistance
+}) => {
+  const handleToggleView = () => {
+    if (viewMode === 'list' && (latitude === null || longitude === null || geoError)) {
+      const modalMessage = 'Para ver el mapa, por favor, permite la geolocalización.';
+      console.log(modalMessage);
+      return;
+    }
+    setViewMode(prevMode => prevMode === 'list' ? 'map' : 'list');
+  };
+
+  return (
+    <>
+      <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-6 sm:p-8 mb-8">
+        <h2 className="text-2xl font-bold text-gray-800 mb-6">Filtros de Búsqueda</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+          <FuelFilter
+            selectedFuel={selectedFuel}
+            onFuelChange={onFuelChange}
+          />
+          <div>
+            <label htmlFor="text-filter" className="block text-sm font-medium text-gray-700 mb-1">
+              Buscar (Provincia, Municipio o Marca):
+            </label>
+            <input
+              type="text"
+              id="text-filter"
+              value={textFilter}
+              onChange={onTextFilterChange}
+              placeholder="Ej: Bilbao, Repsol"
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-gray-900"
+            />
+          </div>
+          <ProximityFilter
+            latitude={latitude}
+            longitude={longitude}
+            geoError={geoError}
+            distanceKm={distanceKm}
+            onDistanceChange={onDistanceChange}
+          />
+        </div>
+        <FilterControls
+          sortBy={sortBy}
+          onSortChange={onSortChange}
+          onClearFilters={onClearFilters}
+        />
+      </div>
+
+      <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-6 sm:p-8">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold text-gray-800">{viewMode === 'list' ? 'Resultados' : 'Mapa de Gasolineras'}</h2>
+          <button
+            onClick={handleToggleView}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700 transition duration-300"
+          >
+            {viewMode === 'list' ? 'Ver Mapa' : 'Ver Lista'}
+          </button>
+        </div>
+        
+        {viewMode === 'list' ? (
+          <>
+            {closestStation && (
+              <ClosestGasStation
+                station={closestStation}
+                selectedFuel={selectedFuel}
+                cleanPrice={cleanPrice}
+                distance={closestStation.distance}
+                onStationClick={onStationClick}
+              />
+            )}
+            {favoriteStations.length > 0 && (
+              <div className="mb-8">
+                <FavoriteGasStations
+                  stations={favoriteStations}
+                  selectedFuel={selectedFuel}
+                  cleanPrice={cleanPrice}
+                  toggleFavorite={toggleFavorite}
+                  favoriteStationIds={favoriteStationIds}
+                  onStationClick={onStationClick}
+                />
+              </div>
+            )}
+            {filteredStations.length > 0 && (
+              <AveragePriceDisplay
+                selectedFuelLabel={selectedFuel.replace('Precio ', '')}
+                averagePrice={averagePrice}
+                distanceKm={debouncedDistanceKm}
+                showDistanceInfo={latitude !== null && longitude !== null && !geoError}
+              />
+            )}
+            <GasStationList
+              stations={filteredStations}
+              selectedFuel={selectedFuel}
+              latitude={latitude}
+              longitude={longitude}
+              cleanPrice={cleanPrice}
+              calculateDistance={calculateDistance}
+              toggleFavorite={toggleFavorite}
+              favoriteStationIds={favoriteStationIds}
+              onStationClick={onStationClick}
+            />
+          </>
+        ) : (
+          <GasStationMap
+            stations={filteredStations}
+            latitude={latitude}
+            longitude={longitude}
+            cleanPrice={cleanPrice}
+            selectedFuel={selectedFuel}
+            favoriteStationIds={favoriteStationIds}
+            userLocation={{ latitude, longitude }} 
+          />
+        )}
+      </div>
+    </>
+  );
+});
+
 function App() {
   const { gasStations, loading: apiLoading, error: apiError } = useGasStationData();
   const { latitude, longitude, error: geoError, isLoading: geoLoading } = useGeolocation();
+  const navigate = useNavigate();
+
+  const { currentUser, loading: authLoading } = useAuth();
 
   const [selectedFuel, setSelectedFuel] = useState(() => initializeStateFromLocalStorage(FILTERS_STORAGE_KEY, {}).selectedFuel || 'Precio Gasolina 95 E5');
   const [distanceKm, setDistanceKm] = useState(() => initializeStateFromLocalStorage(FILTERS_STORAGE_KEY, {}).distanceKm || 10);
@@ -43,16 +175,17 @@ function App() {
   const [textFilter, setTextFilter] = useState(() => initializeStateFromLocalStorage(FILTERS_STORAGE_KEY, {}).textFilter || '');
   const debouncedTextFilter = useDebounce(textFilter, 300);
   const [sortBy, setSortBy] = useState(() => initializeStateFromLocalStorage(FILTERS_STORAGE_KEY, {}).sortBy || 'price');
-  const [favoriteStationIds, setFavoriteStationIds] = useState(() => initializeStateFromLocalStorage(FAVORITES_STORAGE_KEY, new Set()));
+  
+  // Nuevo estado para los favoritos obtenidos de Firestore
+  const [favoriteStationIds, setFavoriteStationIds] = useState(new Set());
+  
+  const [viewMode, setViewMode] = useState('list');
 
   const [filteredStations, setFilteredStations] = useState([]);
   const [averagePrice, setAveragePrice] = useState(0);
   const [showModal, setShowModal] = useState(false);
   const [modalMessage, setModalMessage] = useState('');
   
-  const [viewMode, setViewMode] = useState('list');
-  const [selectedStation, setSelectedStation] = useState(null);
-
   const loading = apiLoading || geoLoading;
   const appBlockingError = apiError;
 
@@ -79,15 +212,30 @@ function App() {
     const distance = R * c;
     return distance;
   };
-
+  
+  // Efecto para escuchar los favoritos del usuario en Firestore
   useEffect(() => {
-    try {
-      localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(Array.from(favoriteStationIds)));
-    } catch (e) {
-      console.error("Error al guardar favoritos en localStorage:", e);
-      showMessageBox("No se pudieron guardar los favoritos. El almacenamiento local está lleno o hay un problema.");
+    // Solo si hay un usuario logueado
+    if (currentUser) {
+      const docRef = doc(db, "favorites", currentUser.uid);
+      const unsubscribe = onSnapshot(docRef, (docSnap) => {
+        if (docSnap.exists()) {
+          const favoritesData = docSnap.data().stations || [];
+          setFavoriteStationIds(new Set(favoritesData));
+        } else {
+          // Si el documento no existe, inicializamos con un array vacío.
+          setDoc(docRef, { stations: [] });
+          setFavoriteStationIds(new Set());
+        }
+      });
+
+      // Función de limpieza para cancelar la suscripción
+      return () => unsubscribe();
+    } else {
+      // Si el usuario cierra sesión, limpiamos los favoritos
+      setFavoriteStationIds(new Set());
     }
-  }, [favoriteStationIds]);
+  }, [currentUser]); // Depende del currentUser, se ejecuta al iniciar/cerrar sesión
 
   useEffect(() => {
     try {
@@ -102,20 +250,34 @@ function App() {
       console.error("Error al guardar filtros en localStorage:", e);
     }
   }, [selectedFuel, distanceKm, textFilter, sortBy]);
+  
+  // Función para añadir/eliminar de favoritos en Firestore
+  const toggleFavorite = useCallback(async (stationId) => {
+    if (!currentUser) {
+      showMessageBox("Por favor, inicia sesión para guardar favoritos.");
+      return;
+    }
+    
+    const docRef = doc(db, "favorites", currentUser.uid);
+    const newIds = new Set(favoriteStationIds);
 
-  const toggleFavorite = useCallback((stationId) => {
-    setFavoriteStationIds(prevIds => {
-      const newIds = new Set(prevIds);
-      if (newIds.has(stationId)) {
-        newIds.delete(stationId);
-        showMessageBox("Gasolinera eliminada de favoritos.");
-      } else {
-        newIds.add(stationId);
-        showMessageBox("Gasolinera añadida a favoritos.");
-      }
-      return newIds;
-    });
-  }, []);
+    if (newIds.has(stationId)) {
+      newIds.delete(stationId);
+      showMessageBox("Gasolinera eliminada de favoritos.");
+    } else {
+      newIds.add(stationId);
+      showMessageBox("Gasolinera añadida a favoritos.");
+    }
+
+    try {
+      await updateDoc(docRef, {
+        stations: Array.from(newIds)
+      });
+    } catch (error) {
+      console.error("Error al actualizar favoritos:", error);
+      showMessageBox("Error al actualizar favoritos en la base de datos.");
+    }
+  }, [currentUser, favoriteStationIds]);
 
   const processedStations = useMemo(() => {
     if (apiLoading || gasStations.length === 0) {
@@ -212,19 +374,17 @@ function App() {
     showMessageBox("Todos los filtros han sido limpiados.");
   };
 
-  const handleOpenDetail = (station) => {
-    setSelectedStation(station);
-  };
+  const handleOpenDetail = useCallback((station) => {
+    navigate(`/gasolinera/${station.IDEESS}`);
+  }, [navigate]);
 
-  const handleCloseDetail = () => {
-    setSelectedStation(null);
-  };
-
-  if (apiLoading) {
+  if (authLoading || apiLoading || geoLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen w-full bg-gradient-to-br from-blue-50 to-indigo-100 font-inter p-4">
-        <div className="text-xl font-semibold text-blue-700 animate-pulse mb-4">Cargando datos de gasolineras...</div>
-        {geoLoading && (<p className="text-gray-600">Obteniendo tu ubicación...</p>)}
+        <div className="text-xl font-semibold text-blue-700 animate-pulse mb-4">
+          {authLoading ? 'Cargando estado de usuario...' : 'Cargando datos de gasolineras...'}
+        </div>
+        {geoLoading && <p className="text-gray-600">Obteniendo tu ubicación...</p>}
       </div>
     );
   }
@@ -246,128 +406,44 @@ function App() {
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-blue-50 to-indigo-100 p-4 sm:p-6 font-inter">
       <Modal isOpen={showModal} message={modalMessage} onClose={() => setShowModal(false)} />
-
-      {selectedStation && (
-        <GasStationDetail
-          station={selectedStation}
-          onClose={handleCloseDetail}
-          cleanPrice={cleanPrice}
-          favoriteStationIds={favoriteStationIds}
-          toggleFavorite={toggleFavorite}
-          allStations={gasStations}
-          calculateDistance={calculateDistance}
-        />
-      )}
-
       <Header />
-      <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-6 sm:p-8 mb-8">
-        <h2 className="text-2xl font-bold text-gray-800 mb-6">Filtros de Búsqueda</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-          <FuelFilter
-            selectedFuel={selectedFuel}
-            onFuelChange={handleFuelChange}
-          />
-          <div>
-            <label htmlFor="text-filter" className="block text-sm font-medium text-gray-700 mb-1">
-              Buscar (Provincia, Municipio o Marca):
-            </label>
-            <input
-              type="text"
-              id="text-filter"
-              value={textFilter}
-              onChange={handleTextFilterChange}
-              placeholder="Ej: Bilbao, Repsol"
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-gray-900"
-            />
-          </div>
-          <ProximityFilter
-            latitude={latitude}
-            longitude={longitude}
-            geoError={geoError}
-            distanceKm={distanceKm}
-            onDistanceChange={handleDistanceChange}
-          />
-        </div>
-        <FilterControls
-          sortBy={sortBy}
-          onSortChange={handleSortChange}
-          onClearFilters={handleClearFilters}
-        />
-      </div>
-      <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-6 sm:p-8">
-        <h2 className="text-2xl font-bold text-gray-800 mb-6">Resultados</h2>
-
-        <div className="flex mb-4">
-          <button
-            onClick={() => setViewMode('list')}
-            className={`px-4 py-2 mr-2 rounded-md transition duration-300 ${viewMode === 'list' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
-          >
-            Vista de Lista
-          </button>
-          <button
-            onClick={() => setViewMode('map')}
-            className={`px-4 py-2 rounded-md transition duration-300 ${viewMode === 'map' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
-          >
-            Vista de Mapa
-          </button>
-        </div>
-
-        {viewMode === 'list' && (
-          <>
-            {closestStation && (
-              <ClosestGasStation
-                station={closestStation}
-                selectedFuel={selectedFuel}
-                cleanPrice={cleanPrice}
-                distance={closestStation.distance}
-                onStationClick={handleOpenDetail}
-              />
-            )}
-            {favoriteStations.length > 0 && (
-              <div className="mb-8">
-                <FavoriteGasStations
-                  stations={favoriteStations}
-                  selectedFuel={selectedFuel}
-                  cleanPrice={cleanPrice}
-                  toggleFavorite={toggleFavorite}
-                  favoriteStationIds={favoriteStationIds}
-                  onStationClick={handleOpenDetail}
-                />
-              </div>
-            )}
-            {filteredStations.length > 0 && (
-              <AveragePriceDisplay
-                selectedFuelLabel={selectedFuel.replace('Precio ', '')}
+      
+      {!currentUser ? (
+        <Login />
+      ) : (
+        <>
+          <Routes>
+            <Route path="/" element={
+              <MainContent
+                selectedFuel={selectedFuel} onFuelChange={handleFuelChange}
+                textFilter={textFilter} onTextFilterChange={handleTextFilterChange}
+                distanceKm={distanceKm} onDistanceChange={handleDistanceChange}
+                sortBy={sortBy} onSortChange={handleSortChange}
+                onClearFilters={handleClearFilters} closestStation={closestStation}
+                favoriteStations={favoriteStations} filteredStations={filteredStations}
+                cleanPrice={cleanPrice} toggleFavorite={toggleFavorite}
+                favoriteStationIds={favoriteStationIds} onStationClick={handleOpenDetail}
+                latitude={latitude} longitude={longitude}
+                debouncedDistanceKm={debouncedDistanceKm} geoError={geoError}
                 averagePrice={averagePrice}
-                distanceKm={debouncedDistanceKm}
-                showDistanceInfo={latitude !== null && longitude !== null && !geoError}
+                calculateDistance={calculateDistance}
+                viewMode={viewMode}
+                setViewMode={setViewMode}
               />
-            )}
-            <GasStationList
-              stations={filteredStations}
-              selectedFuel={selectedFuel}
-              latitude={latitude}
-              longitude={longitude}
-              cleanPrice={cleanPrice}
-              calculateDistance={calculateDistance}
-              toggleFavorite={toggleFavorite}
-              favoriteStationIds={favoriteStationIds}
-              onStationClick={handleOpenDetail}
-            />
-          </>
-        )}
-
-        {viewMode === 'map' && (
-          <GasStationMap
-            stations={filteredStations}
-            userLocation={{ latitude, longitude }}
-            selectedFuel={selectedFuel}
-            cleanPrice={cleanPrice}
-            favoriteStationIds={favoriteStationIds}
-            onStationClick={handleOpenDetail}
-          />
-        )}
-      </div>
+            } />
+            <Route path="/gasolinera/:id" element={
+              <GasStationDetail
+                gasStations={gasStations}
+                cleanPrice={cleanPrice}
+                favoriteStationIds={favoriteStationIds}
+                toggleFavorite={toggleFavorite}
+                calculateDistance={calculateDistance}
+              />
+            } />
+          </Routes>
+        </>
+      )}
+      
       <footer className="text-center text-gray-500 text-sm mt-8">
         <p>Datos obtenidos del Ministerio para la Transición Ecológica y el Reto Demográfico.</p>
         <p>
