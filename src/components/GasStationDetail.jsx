@@ -195,7 +195,7 @@ function GasStationDetail({ gasStations, cleanPrice, favoriteStationIds, toggleF
                   </Marker>
                 )}
                 
-                {[station, ...nearbyStations].map(s => {
+                {[station, ...nearbyStations.slice(0, 5)].map(s => {
                   const currentStationLat = cleanPrice(s['Latitud'].replace(',', '.'));
                   const currentStationLon = cleanPrice(s['Longitud (WGS84)'].replace(',', '.'));
                   
@@ -238,7 +238,7 @@ function GasStationDetail({ gasStations, cleanPrice, favoriteStationIds, toggleF
         <div className="mt-6">
           <h3 className="text-lg font-bold text-gray-700">Gasolineras cercanas</h3>
           <ul className="divide-y divide-gray-200">
-            {nearbyStations.map(nearby => (
+            {nearbyStations.slice(0, 5).map(nearby => (
               <li key={nearby.IDEESS} className="flex justify-between items-center py-2">
                 <div className="flex-grow">
                   <p className="font-semibold text-gray-800">{nearby.Rótulo}</p>
