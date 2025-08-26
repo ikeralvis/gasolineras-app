@@ -1,7 +1,7 @@
 // src/components/ClosestGasStation.jsx
 import React from 'react';
 
-function ClosestGasStation({ station, selectedFuel, cleanPrice, distance }) {
+function ClosestGasStation({ station, selectedFuel, cleanPrice, distance, onStationClick }) {
   if (!station) {
     return null;
   }
@@ -12,9 +12,10 @@ function ClosestGasStation({ station, selectedFuel, cleanPrice, distance }) {
   return (
     <div className="bg-blue-100 p-4 rounded-lg shadow-md mb-6">
       <h3 className="text-xl font-bold text-blue-800 mb-2">Gasolinera Más Cercana</h3>
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center cursor-pointer hover:bg-blue-200 transition-colors duration-200" onClick={() => onStationClick(station)}>
         <div>
           <p className="font-semibold text-gray-800">{station.Rótulo}</p>
+
           <p className="text-sm text-gray-600">{station.Dirección}</p>
         </div>
         <div className="text-right">
