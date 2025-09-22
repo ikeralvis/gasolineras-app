@@ -38,3 +38,9 @@ Asegúrate de tener **Node.js** y **npm** instalados en tu máquina.
     La aplicación se abrirá en tu navegador en `http://localhost:5173`.
     
 El proyecto está actualmente desplegado y disponible en **Vercel** en el siguiente enlace: [**https://gasolineras-app-beta.vercel.app/**](https://gasolineras-app-beta.vercel.app/ "null")
+
+### ⚠️ Aviso de Responsabilidad sobre los Datos
+
+Este proyecto utiliza datos obtenidos de la API pública del Ministerio para la Transición Ecológica y el Reto Demográfico del Gobierno de España. Los datos se proporcionan "tal cual" y están sujetos a las condiciones de uso de la API, las cuales pueden no permitir el uso comercial. El autor de este proyecto no se hace responsable del uso que se le dé a la información obtenida.
+
+Para más detalles, consulta la documentación oficial de la API.
