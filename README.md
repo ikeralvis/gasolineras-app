@@ -1,12 +1,40 @@
-# React + Vite
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+# ⛽ Gasolineras España
 
-Currently, two official plugins are available:
+Este proyecto es una aplicación web dinámica, desarrollada con **React** y **Vite**, que te permite consultar los precios de las gasolineras en España. La aplicación muestra una lista de gasolineras ordenada por precio, permite la búsqueda de estaciones específicas y aplicar diversos filtros para refinar los resultados. El estilo de la aplicación ha sido creado con **Tailwind CSS**.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 🛠️ Tecnologías utilizadas
 
-## Expanding the ESLint configuration
+-   **Frontend**: React (creado con Vite)
+-   **Estilos**: Tailwind CSS
+-   **Gestión de paquetes**: npm
+-   **Lógica**: Javascript ES6+
+-   **API**: Se consumen datos de la **API pública del Ministerio para la Transición Ecológica y el Reto Demográfico del Gobierno de España** para obtener la información de las gasolineras y sus precios.
+-   **Despliegue**: Vercel
+   
+## 🚀 Funcionalidades principales
+-   **Listado de precios**: Muestra una lista de gasolineras con sus precios de combustible, ordenados por precio (de menor a mayor) por defecto.
+-   **Búsqueda**: Puedes buscar gasolineras por su nombre o ubicación.
+-   **Filtros**: Permite aplicar filtros para acotar la búsqueda, como el tipo de combustible o la provincia.
+   
+## 💻 Cómo empezar
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### Prerrequisitos
+Asegúrate de tener **Node.js** y **npm** instalados en tu máquina.
+### Instalación y ejecución
+1.  **Clonar el repositorio**:
+    ```
+    git clone [https://github.com/ikeralvis/gasolineras-app.git](https://github.com/ikeralvis/gasolineras-app.git)
+    cd nombre-del-repositorio
+    ```
+2.  **Instalar las dependencias**:
+    ```
+    npm install
+    ```
+3.  **Ejecutar la aplicación en modo desarrollo**:
+    ```
+    npm run dev
+    ```
+    La aplicación se abrirá en tu navegador en `http://localhost:5173`.
+    
+El proyecto está actualmente desplegado y disponible en **Vercel** en el siguiente enlace: [**https://gasolineras-app-beta.vercel.app/**](https://gasolineras-app-beta.vercel.app/ "null")
